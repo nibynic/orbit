@@ -1,0 +1,16 @@
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.RequestStrategy = undefined;
+
+var _connectionStrategy = require('./connection-strategy');
+
+class RequestStrategy extends _connectionStrategy.ConnectionStrategy {
+    constructor(options) {
+        super(options);
+    }
+}
+exports.RequestStrategy = RequestStrategy;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInN0cmF0ZWdpZXMvcmVxdWVzdC1zdHJhdGVneS5qcyJdLCJuYW1lcyI6WyJSZXF1ZXN0U3RyYXRlZ3kiLCJDb25uZWN0aW9uU3RyYXRlZ3kiLCJjb25zdHJ1Y3RvciIsIm9wdGlvbnMiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7QUFBQTs7QUFDTyxNQUFNQSxlQUFOLFNBQThCQyxzQ0FBOUIsQ0FBaUQ7QUFDcERDLGdCQUFZQyxPQUFaLEVBQXFCO0FBQ2pCLGNBQU1BLE9BQU47QUFDSDtBQUhtRDtRQUEzQ0gsZSxHQUFBQSxlIiwiZmlsZSI6InN0cmF0ZWdpZXMvcmVxdWVzdC1zdHJhdGVneS5qcyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IENvbm5lY3Rpb25TdHJhdGVneSB9IGZyb20gJy4vY29ubmVjdGlvbi1zdHJhdGVneSc7XG5leHBvcnQgY2xhc3MgUmVxdWVzdFN0cmF0ZWd5IGV4dGVuZHMgQ29ubmVjdGlvblN0cmF0ZWd5IHtcbiAgICBjb25zdHJ1Y3RvcihvcHRpb25zKSB7XG4gICAgICAgIHN1cGVyKG9wdGlvbnMpO1xuICAgIH1cbn0iXX0=

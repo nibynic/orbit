@@ -1,0 +1,2 @@
+export { default as ImmutableMap } from './immutable-map';
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImluZGV4LmpzIl0sIm5hbWVzIjpbImRlZmF1bHQiLCJJbW11dGFibGVNYXAiXSwibWFwcGluZ3MiOiJBQUFBLFNBQVNBLFdBQVdDLFlBQXBCLFFBQXdDLGlCQUF4QyIsImZpbGUiOiJpbmRleC5qcyIsInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCB7IGRlZmF1bHQgYXMgSW1tdXRhYmxlTWFwIH0gZnJvbSAnLi9pbW11dGFibGUtbWFwJzsiXX0=

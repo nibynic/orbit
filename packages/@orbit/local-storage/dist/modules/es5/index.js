@@ -1,0 +1,3 @@
+export { default } from './source';
+export { supportsLocalStorage } from './lib/local-storage';
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImluZGV4LmpzIl0sIm5hbWVzIjpbImRlZmF1bHQiLCJzdXBwb3J0c0xvY2FsU3RvcmFnZSJdLCJtYXBwaW5ncyI6IkFBQUEsU0FBU0EsT0FBVCxRQUF3QixVQUF4QjtBQUNBLFNBQVNDLG9CQUFULFFBQXFDLHFCQUFyQyIsImZpbGUiOiJpbmRleC5qcyIsInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCB7IGRlZmF1bHQgfSBmcm9tICcuL3NvdXJjZSc7XG5leHBvcnQgeyBzdXBwb3J0c0xvY2FsU3RvcmFnZSB9IGZyb20gJy4vbGliL2xvY2FsLXN0b3JhZ2UnOyJdfQ==
