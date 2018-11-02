@@ -342,16 +342,25 @@ function encodeQueryParams(obj) {
 }
 function appendQueryParams(url, obj) {
     var fullUrl = url;
+    if (obj.filter && Array.isArray(obj.filter)) {
+        var filter = obj.filter;
+        delete obj.filter;
+        filter.forEach(function (filterOption) {
+            fullUrl = appendQueryParams(fullUrl, { filter: filterOption });
+        });
+    }
     var queryParams = encodeQueryParams(obj);
     if (queryParams.length > 0) {
-        if (fullUrl.indexOf('?') === -1) {
-            fullUrl += '?';
-        } else {
-            fullUrl += '&';
-        }
+        fullUrl += nextQueryParamIndicator(fullUrl);
         fullUrl += queryParams;
     }
     return fullUrl;
+}
+function nextQueryParamIndicator(url) {
+    if (url.indexOf('?') === -1) {
+        return '?';
+    }
+    return '&';
 }
 
 function customRequestOptions(source, queryOrTransform) {
@@ -431,30 +440,38 @@ var GetOperators = {
     }
 };
 function buildFilterParam(source, filterSpecifiers) {
-    var filters = {};
+    var filters = [];
     filterSpecifiers.forEach(function (filterSpecifier) {
         if (filterSpecifier.kind === 'attribute' && filterSpecifier.op === 'equal') {
+            var _filters$push;
+
             var attributeFilter = filterSpecifier;
             // Note: We don't know the `type` of the attribute here, so passing `null`
             var resourceAttribute = source.serializer.resourceAttribute(null, attributeFilter.attribute);
-            filters[resourceAttribute] = attributeFilter.value;
+            filters.push((_filters$push = {}, _filters$push[resourceAttribute] = attributeFilter.value, _filters$push));
         } else if (filterSpecifier.kind === 'relatedRecord') {
             var relatedRecordFilter = filterSpecifier;
             if (Array.isArray(relatedRecordFilter.record)) {
-                filters[relatedRecordFilter.relation] = relatedRecordFilter.record.map(function (e) {
+                var _filters$push2;
+
+                filters.push((_filters$push2 = {}, _filters$push2[relatedRecordFilter.relation] = relatedRecordFilter.record.map(function (e) {
                     return e.id;
-                }).join(',');
+                }).join(','), _filters$push2));
             } else {
-                filters[relatedRecordFilter.relation] = relatedRecordFilter.record.id;
+                var _filters$push3;
+
+                filters.push((_filters$push3 = {}, _filters$push3[relatedRecordFilter.relation] = relatedRecordFilter.record.id, _filters$push3));
             }
         } else if (filterSpecifier.kind === 'relatedRecords') {
+            var _filters$push4;
+
             if (filterSpecifier.op !== 'equal') {
                 throw new Error('Operation "' + filterSpecifier.op + '" is not supported in JSONAPI for relatedRecords filtering');
             }
             var relatedRecordsFilter = filterSpecifier;
-            filters[relatedRecordsFilter.relation] = relatedRecordsFilter.records.map(function (e) {
+            filters.push((_filters$push4 = {}, _filters$push4[relatedRecordsFilter.relation] = relatedRecordsFilter.records.map(function (e) {
                 return e.id;
-            }).join(',');
+            }).join(','), _filters$push4));
         } else {
             throw new Orbit.QueryExpressionParseError('Filter operation ' + filterSpecifier.op + ' not recognized for JSONAPISource.', filterSpecifier);
         }
@@ -479,33 +496,68 @@ function deserialize(source, document) {
     if (deserialized.included) {
         Array.prototype.push.apply(records, deserialized.included);
     }
-    var operations = records.map(function (record) {
+    return records.map(function (record) {
         return {
             op: 'replaceRecord',
             record: record
         };
     });
-    return [Orbit.buildTransform(operations)];
+}
+function extractRecords(source, document) {
+    var deserialized = source.serializer.deserializeDocument(document);
+    return _orbit_utils.toArray(deserialized.data);
 }
 var PullOperators = {
     findRecord: function (source, query) {
         return GetOperators.findRecord(source, query).then(function (data) {
-            return deserialize(source, data);
+            return [Orbit.buildTransform(deserialize(source, data))];
         });
     },
     findRecords: function (source, query) {
         return GetOperators.findRecords(source, query).then(function (data) {
-            return deserialize(source, data);
+            return [Orbit.buildTransform(deserialize(source, data))];
         });
     },
     findRelatedRecord: function (source, query) {
+        var expression = query.expression;
+        var record = expression.record,
+            relationship = expression.relationship;
+
         return GetOperators.findRelatedRecord(source, query).then(function (data) {
-            return deserialize(source, data);
+            var operations = deserialize(source, data);
+            var records = extractRecords(source, data);
+            operations.push({
+                op: 'replaceRelatedRecord',
+                record: record,
+                relationship: relationship,
+                relatedRecord: {
+                    type: records[0].type,
+                    id: records[0].id
+                }
+            });
+            return [Orbit.buildTransform(operations)];
         });
     },
     findRelatedRecords: function (source, query) {
+        var expression = query.expression;
+        var record = expression.record,
+            relationship = expression.relationship;
+
         return GetOperators.findRelatedRecords(source, query).then(function (data) {
-            return deserialize(source, data);
+            var operations = deserialize(source, data);
+            var records = extractRecords(source, data);
+            operations.push({
+                op: 'replaceRelatedRecords',
+                record: record,
+                relationship: relationship,
+                relatedRecords: records.map(function (r) {
+                    return {
+                        type: r.type,
+                        id: r.id
+                    };
+                })
+            });
+            return [Orbit.buildTransform(operations)];
         });
     }
 };
@@ -518,20 +570,7 @@ var TransformRequestProcessors = {
         var requestDoc = serializer.serializeDocument(record);
         var settings = buildFetchSettings(request.options, { method: 'POST', json: requestDoc });
         return source.fetch(source.resourceURL(record.type), settings).then(function (raw) {
-            var responseDoc = serializer.deserializeDocument(raw, record);
-            var updatedRecord = responseDoc.data;
-            var transforms = [];
-            var updateOps = Orbit.recordDiffs(record, updatedRecord);
-            if (updateOps.length > 0) {
-                transforms.push(Orbit.buildTransform(updateOps));
-            }
-            if (responseDoc.included && responseDoc.included.length > 0) {
-                var includedOps = responseDoc.included.map(function (record) {
-                    return { op: 'replaceRecord', record: record };
-                });
-                transforms.push(Orbit.buildTransform(includedOps));
-            }
-            return transforms;
+            return handleChanges(record, serializer.deserializeDocument(raw, record));
         });
     },
     removeRecord: function (source, request) {
@@ -545,14 +584,20 @@ var TransformRequestProcessors = {
         });
     },
     replaceRecord: function (source, request) {
+        var serializer = source.serializer;
+
         var record = request.record;
         var type = record.type,
             id = record.id;
 
-        var requestDoc = source.serializer.serializeDocument(record);
+        var requestDoc = serializer.serializeDocument(record);
         var settings = buildFetchSettings(request.options, { method: 'PATCH', json: requestDoc });
-        return source.fetch(source.resourceURL(type, id), settings).then(function () {
-            return [];
+        return source.fetch(source.resourceURL(type, id), settings).then(function (raw) {
+            if (raw) {
+                return handleChanges(record, serializer.deserializeDocument(raw, record));
+            } else {
+                return [];
+            }
         });
     },
     addToRelatedRecords: function (source, request) {
@@ -737,6 +782,21 @@ function replaceRecordHasMany(record, relationship, relatedRecords) {
         return Orbit.cloneRecordIdentity(r);
     }));
 }
+function handleChanges(record, responseDoc) {
+    var updatedRecord = responseDoc.data;
+    var transforms = [];
+    var updateOps = Orbit.recordDiffs(record, updatedRecord);
+    if (updateOps.length > 0) {
+        transforms.push(Orbit.buildTransform(updateOps));
+    }
+    if (responseDoc.included && responseDoc.included.length > 0) {
+        var includedOps = responseDoc.included.map(function (record) {
+            return { op: 'replaceRecord', record: record };
+        });
+        transforms.push(Orbit.buildTransform(includedOps));
+    }
+    return transforms;
+}
 
 function _defaults$1(obj, defaults) { var keys = Object.getOwnPropertyNames(defaults); for (var i = 0; i < keys.length; i++) { var key = keys[i]; var value = Object.getOwnPropertyDescriptor(defaults, key); if (value && value.configurable && obj[key] === undefined) { Object.defineProperty(obj, key, value); } } return obj; }
 
@@ -763,7 +823,8 @@ var InvalidServerResponse = function (_Exception) {
 
 function deserialize$1(source, document) {
     var deserialized = source.serializer.deserializeDocument(document);
-    var records = _orbit_utils.toArray(deserialized.data);
+    var records = [];
+    Array.prototype.push.apply(records, _orbit_utils.toArray(deserialized.data));
     if (deserialized.included) {
         Array.prototype.push.apply(records, deserialized.included);
     }

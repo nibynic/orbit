@@ -3,7 +3,8 @@ import { buildTransform } from '@orbit/data';
 import { GetOperators } from "./get-operators";
 function deserialize(source, document) {
     const deserialized = source.serializer.deserializeDocument(document);
-    const records = toArray(deserialized.data);
+    const records = [];
+    Array.prototype.push.apply(records, toArray(deserialized.data));
     if (deserialized.included) {
         Array.prototype.push.apply(records, deserialized.included);
     }
