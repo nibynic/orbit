@@ -518,7 +518,20 @@ var TransformRequestProcessors = {
         var requestDoc = serializer.serializeDocument(record);
         var settings = buildFetchSettings(request.options, { method: 'POST', json: requestDoc });
         return source.fetch(source.resourceURL(record.type), settings).then(function (raw) {
-            return handleChanges(record, serializer.deserializeDocument(raw, record));
+            var responseDoc = serializer.deserializeDocument(raw, record);
+            var updatedRecord = responseDoc.data;
+            var transforms = [];
+            var updateOps = Orbit.recordDiffs(record, updatedRecord);
+            if (updateOps.length > 0) {
+                transforms.push(Orbit.buildTransform(updateOps));
+            }
+            if (responseDoc.included && responseDoc.included.length > 0) {
+                var includedOps = responseDoc.included.map(function (record) {
+                    return { op: 'replaceRecord', record: record };
+                });
+                transforms.push(Orbit.buildTransform(includedOps));
+            }
+            return transforms;
         });
     },
     removeRecord: function (source, request) {
@@ -532,18 +545,14 @@ var TransformRequestProcessors = {
         });
     },
     replaceRecord: function (source, request) {
-        var serializer = source.serializer;
-
         var record = request.record;
         var type = record.type,
             id = record.id;
 
-        var requestDoc = serializer.serializeDocument(record);
+        var requestDoc = source.serializer.serializeDocument(record);
         var settings = buildFetchSettings(request.options, { method: 'PATCH', json: requestDoc });
-        return source.fetch(source.resourceURL(type, id), settings).then(function (raw) {
-            if (raw) {
-                return handleChanges(record, serializer.deserializeDocument(raw, record));
-            }
+        return source.fetch(source.resourceURL(type, id), settings).then(function () {
+            return [];
         });
     },
     addToRelatedRecords: function (source, request) {
@@ -727,21 +736,6 @@ function replaceRecordHasMany(record, relationship, relatedRecords) {
     _orbit_utils.deepSet(record, ['relationships', relationship, 'data'], relatedRecords.map(function (r) {
         return Orbit.cloneRecordIdentity(r);
     }));
-}
-function handleChanges(record, responseDoc) {
-    var updatedRecord = responseDoc.data;
-    var transforms = [];
-    var updateOps = Orbit.recordDiffs(record, updatedRecord);
-    if (updateOps.length > 0) {
-        transforms.push(Orbit.buildTransform(updateOps));
-    }
-    if (responseDoc.included && responseDoc.included.length > 0) {
-        var includedOps = responseDoc.included.map(function (record) {
-            return { op: 'replaceRecord', record: record };
-        });
-        transforms.push(Orbit.buildTransform(includedOps));
-    }
-    return transforms;
 }
 
 function _defaults$1(obj, defaults) { var keys = Object.getOwnPropertyNames(defaults); for (var i = 0; i < keys.length; i++) { var key = keys[i]; var value = Object.getOwnPropertyDescriptor(defaults, key); if (value && value.configurable && obj[key] === undefined) { Object.defineProperty(obj, key, value); } } return obj; }

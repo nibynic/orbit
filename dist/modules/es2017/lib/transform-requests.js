@@ -7,7 +7,22 @@ export const TransformRequestProcessors = {
         const record = request.record;
         const requestDoc = serializer.serializeDocument(record);
         const settings = buildFetchSettings(request.options, { method: 'POST', json: requestDoc });
-        return source.fetch(source.resourceURL(record.type), settings).then(raw => handleChanges(record, serializer.deserializeDocument(raw, record)));
+        return source.fetch(source.resourceURL(record.type), settings).then(raw => {
+            let responseDoc = serializer.deserializeDocument(raw, record);
+            let updatedRecord = responseDoc.data;
+            let transforms = [];
+            let updateOps = recordDiffs(record, updatedRecord);
+            if (updateOps.length > 0) {
+                transforms.push(buildTransform(updateOps));
+            }
+            if (responseDoc.included && responseDoc.included.length > 0) {
+                let includedOps = responseDoc.included.map(record => {
+                    return { op: 'replaceRecord', record };
+                });
+                transforms.push(buildTransform(includedOps));
+            }
+            return transforms;
+        });
     },
     removeRecord(source, request) {
         const { type, id } = request.record;
@@ -15,16 +30,11 @@ export const TransformRequestProcessors = {
         return source.fetch(source.resourceURL(type, id), settings).then(() => []);
     },
     replaceRecord(source, request) {
-        const { serializer } = source;
         const record = request.record;
         const { type, id } = record;
-        const requestDoc = serializer.serializeDocument(record);
+        const requestDoc = source.serializer.serializeDocument(record);
         const settings = buildFetchSettings(request.options, { method: 'PATCH', json: requestDoc });
-        return source.fetch(source.resourceURL(type, id), settings).then(raw => {
-            if (raw) {
-                return handleChanges(record, serializer.deserializeDocument(raw, record));
-            }
-        });
+        return source.fetch(source.resourceURL(type, id), settings).then(() => []);
     },
     addToRelatedRecords(source, request) {
         const { type, id } = request.record;
@@ -177,19 +187,4 @@ function replaceRecordHasOne(record, relationship, relatedRecord) {
 }
 function replaceRecordHasMany(record, relationship, relatedRecords) {
     deepSet(record, ['relationships', relationship, 'data'], relatedRecords.map(r => cloneRecordIdentity(r)));
-}
-function handleChanges(record, responseDoc) {
-    let updatedRecord = responseDoc.data;
-    let transforms = [];
-    let updateOps = recordDiffs(record, updatedRecord);
-    if (updateOps.length > 0) {
-        transforms.push(buildTransform(updateOps));
-    }
-    if (responseDoc.included && responseDoc.included.length > 0) {
-        let includedOps = responseDoc.included.map(record => {
-            return { op: 'replaceRecord', record };
-        });
-        transforms.push(buildTransform(includedOps));
-    }
-    return transforms;
 }
